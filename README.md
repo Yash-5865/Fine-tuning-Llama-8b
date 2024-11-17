@@ -74,6 +74,84 @@ def formatting_prompts_func(examples):
         texts.append(text)
     return { "text" : texts, }
 
+train_dataset = dataset['train'].map(formatting_prompts_func, batched = True,)
+test_dataset = dataset['test']
 
+```
+4. **Define Model parameters**
+```
+from trl import SFTTrainer
+from transformers import TrainingArguments
+from unsloth import is_bfloat16_supported
 
+training_args = TrainingArguments(
+        per_device_train_batch_size = 2,
+        gradient_accumulation_steps = 4,
+        warmup_steps = 400,
+        #num_train_epochs = 1, # Set this for 1 full training run.
+        max_steps = 1000,
+        learning_rate = 1e-5,
+        fp16 = not is_bfloat16_supported(),
+        bf16 = is_bfloat16_supported(),
+        logging_steps = 1,
+        optim = "adamw_8bit",
+        weight_decay = 0.02,
+        lr_scheduler_type = "cosine",
+        seed = 3407,
+        output_dir = "outputs",
+        report_to = "none", # Use this for WandB etc
+    )
+
+trainer = SFTTrainer(
+    model = model,
+    tokenizer = tokenizer,
+    train_dataset = train_dataset,
+    dataset_text_field = "text",
+    max_seq_length = max_seq_length,
+    dataset_num_proc = 4,
+    packing = False, # Can make training 5x faster for short sequences.
+    args = training_args
+)
+
+trainer_stats = trainer.train()
+```
+5.**Test the model**
+```
+final_response = []
+for i in range(len(test_dataset)):
+  FastLanguageModel.for_inference(model)
+  sample_ques = test_dataset['question'][i]
+  sample_ans = test_dataset['answer'][i]
+  sample_soln = test_dataset['solution'][i]
+  input_prompt = prompt.format(
+          sample_ques, # ques
+          sample_ans, # given answer
+          sample_soln,
+          "", # output - leave this blank for generation! LLM willl generate is it is True or False
+      )
+  inputs = tokenizer(
+  [
+      input_prompt
+  ], return_tensors = "pt").to("cuda")
+
+  input_shape = inputs['input_ids'].shape
+  input_token_len = input_shape[1] # 1 because of batch
+  outputs = model.generate(**inputs, max_new_tokens = 64, use_cache = True)
+
+  response = tokenizer.batch_decode([outputs[0][input_token_len:]], skip_special_tokens=True)
+  final_response.append(response[0])
+  if i%100 == 0:
+    print(i)
+
+bool_list = [s == "True" for s in final_response]
+
+dict_result = {
+    "ID": list(range(len(bool_list))),
+    "is_correct": bool_list
+}
+
+import pandas as pd
+
+df = pd.DataFrame(dict_result)
+df.to_csv("output.csv", index=False)
 ```
