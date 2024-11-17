@@ -1,7 +1,7 @@
 # Fine-tuning-Llama-8b
 
 This repository contains the code and instructions to fine-tune the Llama-8B model using LoRA (Low-Rank Adaptation) and the Unsloth framework. The goal of this project is to fine-tune the model for evaluating the correctness of mathematical solutions. The repository includes all necessary steps to reproduce the results, from installing dependencies to running the model on a test set.<br>
-Report : https://www.overleaf.com/read/ywhxgpvkhncs#4c8824
+Report : https://www.overleaf.com/read/ywhxgpvkhncs#4c8824 <br>
 Link to the model: https://drive.google.com/drive/folders/18J1rdX5OlWCibNc0oJ4RHWzndeskZuXN?usp=sharing
 
 ## Steps to Reproduce the results:
